@@ -1,49 +1,49 @@
-repositories {
-    jcenter()
-    maven(url = "https://kotlin.bintray.com/kotlinx/") // remove when kotlinx-datetime moved to jcenter
-}
+import com.adarshr.gradle.testlogger.theme.ThemeType
 
 plugins {
-    kotlin("jvm") version "1.3.72"
-    kotlin("plugin.serialization") version "1.3.72"
+    kotlin("jvm") version "1.5.30"
+    kotlin("plugin.serialization") version "1.5.30"
     `maven-publish`
     signing
-    id("org.jetbrains.dokka") version "0.10.1"
+    id("org.jetbrains.dokka") version "1.5.0"
+    id("com.adarshr.test-logger") version "3.0.0"
+}
+
+repositories {
+    mavenCentral()
 }
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.20.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.1.0")
-    implementation("com.charleskorn.kaml:kaml:0.18.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
+    implementation("com.charleskorn.kaml:kaml:0.35.3")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
-    testImplementation("org.assertj:assertj-core:3.18.0")
+    testImplementation(platform("org.junit:junit-bom:5.7.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.assertj:assertj-core:3.20.2")
 }
 
 tasks {
-    compileKotlin {
+    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         kotlinOptions {
-            jvmTarget = "1.8"
+            freeCompilerArgs = freeCompilerArgs + listOf("-Xjsr305=strict")
+            jvmTarget = JavaVersion.VERSION_11.toString()
         }
     }
 
-    compileTestKotlin {
-        kotlinOptions {
-            jvmTarget = "1.8"
-        }
-    }
-
-    test {
+    withType<Test>().configureEach {
         useJUnitPlatform()
+        jvmArgs(
+            "-Duser.language=en"
+        )
     }
 }
 
-val dokkaJar by tasks.creating(Jar::class) {
-    group = JavaBasePlugin.DOCUMENTATION_GROUP
-    description = "Assembles Kotlin docs with Dokka"
+val dokkaJar by tasks.registering(Jar::class) {
+    dependsOn("dokkaHtml")
     archiveClassifier.set("javadoc")
-    from(tasks.dokka)
+    from(buildDir.resolve("dokka"))
 }
 
 java {
@@ -83,7 +83,9 @@ publishing {
     }
 
     repositories {
-        val url = if (project.version.toString().contains("SNAPSHOT")) "https://oss.sonatype.org/content/repositories/snapshots" else "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+        val url = if (project.version.toString()
+                .contains("SNAPSHOT")
+        ) "https://oss.sonatype.org/content/repositories/snapshots" else "https://oss.sonatype.org/service/local/staging/deploy/maven2"
         maven(url) {
             credentials {
                 username = project.findProperty("ossrh.username")?.toString() ?: ""
@@ -95,4 +97,8 @@ publishing {
 
 signing {
     sign(publishing.publications["maven"])
+}
+
+testlogger {
+    theme = ThemeType.MOCHA
 }
